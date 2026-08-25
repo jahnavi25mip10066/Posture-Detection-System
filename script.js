@@ -2,24 +2,63 @@ const videoElement = document.getElementById('input_video');
 const canvasElement = document.getElementById('output_canvas');
 const canvasCtx = canvasElement.getContext('2d');
 const statusOverlay = document.getElementById('status-overlay');
+const calibrateBtn = document.getElementById('calibrate-btn');
 
-// Helper function to calculate 2D distance between two points
-function calculateDistance(a, b) {
-    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+// --- MATHEMATICAL MODELS (Based on Paper 1: Sitting Posture Correction) ---
+
+// Distance between two points
+function distance(p1, p2) {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
-// The main loop that runs every time a frame is processed
+// Incenter of a triangle (weighted formula from research paper)
+function incenter(A, B, C) {
+    const a = distance(B, C);
+    const b = distance(A, C);
+    const c = distance(A, B);
+    const perimeter = a + b + c;
+    
+    // Prevent division by zero
+    if (perimeter === 0) return A; 
+
+    return {
+        x: (a * A.x + b * B.x + c * C.x) / perimeter,
+        y: (a * A.y + b * B.y + c * C.y) / perimeter
+    };
+}
+
+// Global calibration baselines
+let baselineF1 = 0.031; // Default normal lean
+let baselineF2 = 1.352; // Default normal slouch (from Paper 1, Table 2)
+let isCalibrated = false;
+
+// Calibration Trigger
+let currentF1 = baselineF1;
+let currentF2 = baselineF2;
+
+calibrateBtn.addEventListener('click', () => {
+    baselineF1 = currentF1;
+    baselineF2 = currentF2;
+    isCalibrated = true;
+    
+    // Visual feedback
+    calibrateBtn.innerText = "✅ Calibrated!";
+    calibrateBtn.style.backgroundColor = "var(--success)";
+    setTimeout(() => {
+        calibrateBtn.innerText = "🎯 Recalibrate";
+        calibrateBtn.style.backgroundColor = "var(--accent)";
+    }, 2000);
+});
+
+// The main AI Loop
 function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    
-    // 1. Draw the actual video frame
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     
     let status = "Waiting for you...";
     let statusColor = "#1d1d1f";
 
-    // 2. If it sees a body, do the math!
     if (results.poseLandmarks) {
         // Draw the skeletal tracking lines
         drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
@@ -27,40 +66,47 @@ function onResults(results) {
         drawLandmarks(canvasCtx, results.poseLandmarks,
             {color: '#0071e3', lineWidth: 2, radius: 4});
 
-        // Get key landmarks
+        // Keypoints tracked (from YOLOv8 paper specs):
+        const nose = results.poseLandmarks[0];
+        const leftEye = results.poseLandmarks[2];
+        const rightEye = results.poseLandmarks[5];
         const leftEar = results.poseLandmarks[7];
         const rightEar = results.poseLandmarks[8];
         const leftShoulder = results.poseLandmarks[11];
         const rightShoulder = results.poseLandmarks[12];
-        const nose = results.poseLandmarks[0];
         
-        // 1. Calculate Shoulder Width (baseline for scale)
-        const shoulderWidth = calculateDistance(leftShoulder, rightShoulder);
-        
-        // 2. Calculate average vertical drop from ears to shoulders
-        // If you slouch, your head drops closer to your shoulders
-        const leftDrop = leftShoulder.y - leftEar.y;
-        const rightDrop = rightShoulder.y - rightEar.y;
-        const averageDrop = (leftDrop + rightDrop) / 2.0;
+        // Derived points: Incenter of face triangles
+        const LFaceCenter = incenter(leftEye, leftEar, nose);
+        const RFaceCenter = incenter(rightEye, rightEar, nose);
 
-        // 3. Posture Ratio (How high the head is compared to shoulder width)
-        // A healthy posture usually has a ratio > 0.5 (head is high up)
-        // If they slouch, the ratio drops significantly.
-        const postureRatio = averageDrop / shoulderWidth;
+        // Distances calculated
+        const s1 = distance(LFaceCenter, leftShoulder);
+        const s2 = distance(RFaceCenter, rightShoulder);
+        const s3 = distance(leftShoulder, rightShoulder);
 
-        // 4. Lean Forward Check using Z-axis (Depth)
-        // If the nose's Z is significantly smaller than shoulders, they are leaning into the screen
-        const averageShoulderZ = (leftShoulder.z + rightShoulder.z) / 2.0;
-        const isLeaningForward = nose.z < (averageShoulderZ - 0.15); // Adjust threshold as needed
+        // Prevent division by zero if shoulders overlap (rare)
+        if (s3 > 0) {
+            // Feature extraction for posture classification
+            currentF1 = Math.abs((s1 - s2) * 10) / s3; // f1: measures left/right lean
+            currentF2 = (s1 + s2) / s3;               // f2: measures forward hunch/slouch
+            
+            // Dynamic thresholds based on calibration (or paper defaults)
+            // Paper normal: f2 = 1.352, hunch = 0.971
+            const slouchThreshold = isCalibrated ? (baselineF2 * 0.85) : 1.1; 
+            
+            // Paper normal: f1 = 0.031, lean = 1.4+
+            const leanThreshold = isCalibrated ? (baselineF1 + 1.0) : 1.2;
 
-        // Alert the user!
-        // We trigger bad posture if their head drops (slouch) OR if they lean too far into the camera
-        if (postureRatio < 0.4 || isLeaningForward) {
-            status = "Slouching! Sit up straight.";
-            statusColor = "var(--danger)";
-        } else {
-            status = "Great Posture!";
-            statusColor = "var(--success)";
+            if (currentF2 < slouchThreshold) {
+                status = "Slouching (Hunchback)!";
+                statusColor = "var(--danger)";
+            } else if (currentF1 > leanThreshold) {
+                status = "Leaning to the side!";
+                statusColor = "var(--warning)";
+            } else {
+                status = "Great Posture!";
+                statusColor = "var(--success)";
+            }
         }
     }
 
@@ -76,7 +122,7 @@ const pose = new Pose({locateFile: (file) => {
 }});
 
 pose.setOptions({
-    modelComplexity: 2, // Upgraded to highest accuracy model (Level 2)
+    modelComplexity: 2, 
     smoothLandmarks: true,
     enableSegmentation: false,
     minDetectionConfidence: 0.6,

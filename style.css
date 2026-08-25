@@ -7,6 +7,8 @@
     --card-bg: #ffffff;
     --success: #34c759;
     --danger: #ff3b30;
+    --warning: #ff9500;
+    --accent: #0071e3;
 }
 
 * {
@@ -93,6 +95,33 @@ main {
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     backdrop-filter: blur(10px);
     transition: color 0.3s ease;
+}
+
+#calibrate-btn {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 99px;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(0, 113, 227, 0.3);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+#calibrate-btn:hover {
+    background-color: #005bb5;
+    transform: translateX(-50%) scale(1.05);
+}
+
+#calibrate-btn:active {
+    transform: translateX(-50%) scale(0.95);
 }
 
 .instructions {

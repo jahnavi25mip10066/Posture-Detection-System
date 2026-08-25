@@ -17,17 +17,18 @@
     <div class="container">
         <header>
             <h1>Stay Upright.</h1>
-            <p>Smart posture detection, running entirely in your browser.</p>
+            <p>Smart posture detection, powered by Research-Grade Math.</p>
         </header>
         
         <main>
             <div class="video-wrapper">
-                <!-- Hidden video element to capture the webcam -->
                 <video id="input_video" style="display: none;" playsinline></video>
-                <!-- Canvas where we draw the beautiful skeleton and video -->
                 <canvas id="output_canvas" width="800" height="600"></canvas>
-                <!-- Status overlay -->
+                
                 <div id="status-overlay">Waiting for camera...</div>
+                
+                <!-- Calibration Button -->
+                <button id="calibrate-btn">🎯 Calibrate Posture</button>
             </div>
             
             <div class="instructions">
@@ -37,7 +38,6 @@
         </main>
     </div>
     
-    <!-- Our custom logic -->
     <script src="script.js"></script>
 </body>
 </html>
