@@ -20,7 +20,7 @@ This project was developed by a team of five software engineers. The workload wa
 | **Snehal Dixit** | Architecture & DevOps | Designed the serverless architecture, managed the Vercel CI/CD deployment pipeline, and orchestrated the integration of the final client-side processing loop. |
 | **Geetesh Parashar** | Machine Learning | Handled the initialization and integration of Google's MediaPipe Pose models, tuning the complexity parameters for optimal browser performance. |
 | **Vaishnavi Dixit** | Applied Mathematics | Researched and engineered the complex spatial features (triangle incenters and Euclidean distances) required to accurately classify slouching and lateral leaning. |
-| **Jhanvi Gaur** | Systems & Data Pipeline | Managed the `getUserMedia` hardware interfacing, handled edge-case occlusion logic, and engineered the high-performance HTML5 Canvas rendering engine. |
+| **Jahnavi Gaur** | Systems & Data Pipeline | Managed the `getUserMedia` hardware interfacing, handled edge-case occlusion logic, and engineered the high-performance HTML5 Canvas rendering engine. |
 | **Pratyasha Singh** | Frontend & State Management | Architected the responsive UI, designed the CSS design system, and engineered the dynamic calibration state management for localized accuracy. |
 
 ---
